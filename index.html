@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chiến sĩ số thông minh - Toán Lớp 1</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap');
@@ -15,6 +15,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            width: 100vw;
             overflow: hidden;
             font-family: 'Nunito', sans-serif;
             user-select: none;
@@ -27,11 +28,32 @@
             border-radius: 15px;
             overflow: hidden;
             background: #fff;
+            
+            /* --- RESPONSIVE CSS --- */
+            /* Đặt kích thước cơ sở */
+            width: 100vw;
+            height: 75vw; /* Tỷ lệ 4:3 (75% của width) */
+            
+            /* Giới hạn kích thước tối đa (Desktop) */
+            max-width: 800px;
+            max-height: 600px;
+        }
+
+        /* Khi màn hình quá cao hoặc rộng (Landscape mobile/Tablet/Desktop) */
+        @media (min-aspect-ratio: 4/3) {
+            #gameContainer {
+                height: 100vh;
+                width: 133.33vh; /* 4/3 * vh */
+                max-width: 800px;
+                max-height: 600px;
+            }
         }
 
         canvas {
             display: block;
-            touch-action: none;
+            width: 100%;
+            height: 100%;
+            touch-action: none; /* Ngăn trình duyệt zoom/scroll khi chạm vào game */
         }
 
         /* Overlay trung (Start Screen + Game Over Screen) */
@@ -51,7 +73,8 @@
             text-align: center;
         }
 
-        button {
+        /* Style chung cho nút Start/Replay */
+        .game-btn {
             padding: 15px 30px;
             font-size: 24px;
             font-family: 'Nunito', sans-serif;
@@ -64,37 +87,89 @@
             transition: transform 0.2s;
             box-shadow: 0 4px 0 #b29700;
             margin-top: 20px;
+            touch-action: manipulation;
         }
 
-        button:active {
+        .game-btn:active {
             transform: scale(0.95);
             box-shadow: 0 2px 0 #b29700;
+        }
+
+        /* Style riêng cho nút Fullscreen (ghi đè style mặc định nếu dùng tag button) */
+        #btnFullscreen {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 20; /* Nổi lên trên canvas nhưng dưới overlay nếu cần */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+            color: #333;
+            /* Reset các style của game-btn nếu bị dính */
+            margin: 0;
+        }
+
+        #btnFullscreen:hover {
+            background: #fff;
+            transform: scale(1.1);
+        }
+
+        #btnFullscreen:active {
+            transform: scale(0.95);
+        }
+
+        #btnFullscreen svg {
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Để click xuyên qua svg vào button */
         }
 
         h1 {
             margin-bottom: 20px;
             text-shadow: 2px 2px 0 #333;
             color: #76ff03;
+            font-size: clamp(24px, 5vw, 40px); /* Chữ tự co giãn */
+            padding: 0 10px;
+        }
+        
+        p {
+             font-size: clamp(14px, 3vw, 18px) !important;
+             padding: 0 20px;
         }
     </style>
 </head>
 <body>
 
     <div id="gameContainer">
+        <!-- Nút Fullscreen -->
+        <button id="btnFullscreen" title="Toàn màn hình">
+            <!-- Icon sẽ được nạp bởi JS -->
+        </button>
+
+        <!-- Canvas vẫn giữ độ phân giải nội bộ là 800x600 để vẽ sắc nét -->
         <canvas id="gameCanvas" width="800" height="600"></canvas>
         
         <!-- Màn hình bắt đầu -->
         <div id="startScreen" class="overlay">
             <h1>CHIẾN SĨ SỐ THÔNG MINH</h1>
-            <p style="margin-bottom: 30px; font-size: 18px;">Các chiến sĩ nhí hãy nhớ luân phiên vượt qua các thử thách nhé</p>
-            <button id="btnStart">BẮT ĐẦU CHƠI</button>
+            <p style="margin-bottom: 30px;">Các chiến sĩ nhí hãy nhớ luân phiên vượt qua các thử thách nhé</p>
+            <button id="btnStart" class="game-btn">BẮT ĐẦU CHƠI</button>
         </div>
 
-        <!-- Màn hình kết thúc (Mới) -->
+        <!-- Màn hình kết thúc -->
         <div id="gameOverScreen" class="overlay" style="display: none;">
             <h1 style="color: #FFD700;">HOÀN THÀNH NHIỆM VỤ!</h1>
             <p id="finalScore" style="font-size: 24px;">Điểm số: 0/0</p>
-            <button id="btnReplay">CHƠI LẠI</button>
+            <button id="btnReplay" class="game-btn">CHƠI LẠI</button>
         </div>
     </div>
 
@@ -109,11 +184,12 @@ const gameOverScreen = document.getElementById('gameOverScreen');
 const btnStart = document.getElementById('btnStart');
 const btnReplay = document.getElementById('btnReplay');
 const finalScoreText = document.getElementById('finalScore');
+const btnFullscreen = document.getElementById('btnFullscreen');
 
 const questionsData = [
     { q: "8 + 0", a: 8 },
     { q: "10 - 5", a: 5 },
-    { q: "0 + 7", a: 7 },
+    { q: "5 + 2", a: 7 },
     { q: "6 - 1", a: 5 }
 ];
 
@@ -123,10 +199,57 @@ let gameState = {
     options: [],
     isPlaying: false,
     feedbackTimer: 0,
-    feedbackType: null, // 'correct' | 'wrong' | null
+    feedbackType: null, 
     mouse: { x: 0, y: 0, isDown: false },
-    sparkles: [] // Mảng chứa hiệu ứng lấp lánh
+    sparkles: [] 
 };
+
+/**
+ * LOGIC FULLSCREEN
+ */
+const iconExpand = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`;
+const iconCompress = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>`;
+
+function updateFullscreenIcon() {
+    if (document.fullscreenElement) {
+        btnFullscreen.innerHTML = iconCompress;
+    } else {
+        btnFullscreen.innerHTML = iconExpand;
+    }
+}
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        // Ưu tiên full container game để giao diện đẹp nhất
+        const elem = document.documentElement; // Full toàn trang
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) { /* Safari */
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE11 */
+            elem.msRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { /* Safari */
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { /* IE11 */
+            document.msExitFullscreen();
+        }
+    }
+}
+
+btnFullscreen.addEventListener('click', toggleFullscreen);
+btnFullscreen.addEventListener('touchstart', (e) => { 
+    e.preventDefault(); // Ngăn sự kiện click giả lập để tránh lặp
+    toggleFullscreen(); 
+}, {passive: false});
+
+document.addEventListener('fullscreenchange', updateFullscreenIcon);
+// Cập nhật icon ban đầu
+updateFullscreenIcon();
+
 
 /**
  * PHẦN 1: HỆ THỐNG ÂM THANH
@@ -168,7 +291,6 @@ function playWrongSound() {
     osc.stop(audioCtx.currentTime + 0.4);
 }
 
-// Cập nhật link nhạc nền mới
 const bgMusic = new Audio('https://aeiouly.s3.ap-southeast-1.amazonaws.com/sounds/nhacnen.mp3');
 bgMusic.loop = true;
 bgMusic.volume = 0.4;
@@ -176,15 +298,21 @@ bgMusic.volume = 0.4;
 function startBackgroundMusic() {
     if (!isMusicOn) return;
     
-    // Đặt thời gian bắt đầu từ giây 19
-    bgMusic.currentTime = 19;
+    // SỬA LỖI: Chỉ tua nhạc nếu metadata đã load xong để tránh lỗi ở lần chạy đầu tiên
+    if (bgMusic.readyState >= 1) {
+        bgMusic.currentTime = 19;
+    }
     
-    bgMusic.play().catch(e => console.log("Lỗi phát nhạc:", e));
+    // Luôn gọi lệnh play, bắt lỗi nếu trình duyệt chặn
+    bgMusic.play().catch(e => console.log("Lỗi phát nhạc (có thể do trình duyệt chặn Autoplay):", e));
 }
 
 function stopBackgroundMusic() {
     bgMusic.pause();
-    bgMusic.currentTime = 19; // Reset về 19s thay vì 0
+    // Reset nhạc an toàn hơn
+    if (bgMusic.readyState >= 1) {
+        bgMusic.currentTime = 19;
+    }
 }
 
 /**
@@ -211,46 +339,31 @@ function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, color) {
     ctx.lineTo(cx, cy - outerRadius);
     ctx.closePath();
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#c62828'; // Viền cho sao vàng nếu cần
+    ctx.strokeStyle = '#c62828';
     if (color === '#FFFF00' || color === '#FFEB3B') ctx.strokeStyle = 'rgba(255,0,0,0.3)';
     ctx.stroke();
     ctx.fillStyle = color;
     ctx.fill();
 }
 
-// Hàm vẽ cờ đỏ sao vàng
 function drawFlag(x, y) {
-    // Cột cờ
-    ctx.fillStyle = '#C0C0C0';
-    ctx.fillRect(x, y, 10, 300);
-    // Bóng cột
-    ctx.fillStyle = '#A0A0A0';
-    ctx.fillRect(x+8, y, 2, 300);
-
-    // Đế cột cờ
-    ctx.fillStyle = '#795548';
-    ctx.fillRect(x - 20, y + 290, 50, 10);
-
-    // Lá cờ (Có hiệu ứng lượn sóng đơn giản)
-    ctx.fillStyle = '#D50000'; // Đỏ cờ
+    ctx.fillStyle = '#C0C0C0'; ctx.fillRect(x, y, 10, 300);
+    ctx.fillStyle = '#A0A0A0'; ctx.fillRect(x+8, y, 2, 300);
+    ctx.fillStyle = '#795548'; ctx.fillRect(x - 20, y + 290, 50, 10);
+    ctx.fillStyle = '#D50000'; 
     ctx.beginPath();
     ctx.moveTo(x + 10, y + 10);
-    ctx.quadraticCurveTo(x + 60, y + 20, x + 110, y + 10); // Cạnh trên
+    ctx.quadraticCurveTo(x + 60, y + 20, x + 110, y + 10);
     ctx.lineTo(x + 110, y + 80);
-    ctx.quadraticCurveTo(x + 60, y + 90, x + 10, y + 80); // Cạnh dưới
+    ctx.quadraticCurveTo(x + 60, y + 90, x + 10, y + 80);
     ctx.closePath();
     ctx.fill();
-
-    // Sao vàng trên cờ
     drawStar(ctx, x + 60, y + 45, 5, 15, 6, '#FFFF00');
 }
 
-// Hàm vẽ bong bóng chat dễ thương
 function drawCuteSpeechBubble(x, y, text) {
     ctx.save();
     ctx.translate(x, y);
-
-    // Bong bóng tròn trĩnh (Ellipse)
     ctx.beginPath();
     ctx.ellipse(0, 0, 110, 45, 0, 0, 2 * Math.PI);
     ctx.fillStyle = '#fff';
@@ -258,216 +371,99 @@ function drawCuteSpeechBubble(x, y, text) {
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#333';
     ctx.stroke();
-
-    // Đuôi bong bóng (Điều chỉnh hướng xuống dưới bên trái một chút để trỏ vào nhân vật ở dưới)
     ctx.beginPath();
-    ctx.moveTo(-20, 40); // Điểm bắt đầu bên trái dưới
-    ctx.quadraticCurveTo(-40, 70, -10, 90); // Đỉnh đuôi trỏ xuống
-    ctx.quadraticCurveTo(10, 50, 40, 40); // Điểm kết thúc
+    ctx.moveTo(-20, 40);
+    ctx.quadraticCurveTo(-40, 70, -10, 90);
+    ctx.quadraticCurveTo(10, 50, 40, 40);
     ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.stroke();
-    
-    // Che nét cắt giữa đuôi và bóng
-    ctx.beginPath();
-    ctx.moveTo(-30, 35);
-    ctx.lineTo(50, 35);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 5;
-    ctx.stroke();
-
-    // Text
+    ctx.beginPath(); ctx.moveTo(-30, 35); ctx.lineTo(50, 35); ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.stroke();
     ctx.fillStyle = '#000';
     ctx.font = 'bold 16px Nunito';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, 0, 0);
-    
     ctx.restore();
 }
 
-// Hàm vẽ bộ đội nhí chi tiết (Full body) - Đã thêm tham số isFemale
 function drawDetailedSoldier(x, y, isSaluting = false, isFemale = false) {
     ctx.save();
     ctx.translate(x, y);
 
-    // --- HÀM VẼ BÍM TÓC (Helper) ---
     const drawBraid = (bx, by, rot) => {
         ctx.save();
         ctx.translate(bx, by);
         ctx.rotate(rot);
-        
         ctx.fillStyle = '#212121';
-        // Vẽ các đốt tóc tết
         for(let i = 0; i < 3; i++) {
             ctx.beginPath();
             ctx.ellipse(0, i * 9 + 5, 8, 9, 0, 0, Math.PI*2);
             ctx.fill();
         }
-        
-        // Đuôi tóc
-        ctx.beginPath();
-        ctx.moveTo(-5, 28);
-        ctx.quadraticCurveTo(0, 45, 5, 28);
-        ctx.fill();
-
-        // Dây chun đỏ
-        ctx.fillStyle = '#D32F2F';
-        ctx.beginPath();
-        ctx.rect(-6, -2, 12, 5); 
-        ctx.fill();
-        
+        ctx.beginPath(); ctx.moveTo(-5, 28); ctx.quadraticCurveTo(0, 45, 5, 28); ctx.fill();
+        ctx.fillStyle = '#D32F2F'; ctx.beginPath(); ctx.rect(-6, -2, 12, 5); ctx.fill();
         ctx.restore();
     };
 
-    // 0. VẼ TÓC SAU LƯNG (Nếu là nữ - Vẽ trước thân mình để tạo hiệu ứng sau lưng)
     if (isFemale) {
-        // Bím trái (hơi nghiêng ra)
         drawBraid(-25, 0, 0.1);
-        // Bím phải (hơi nghiêng ra)
         drawBraid(25, 0, -0.1);
     }
 
-    // 1. Chân (Quần xanh)
     ctx.fillStyle = '#33691E'; 
-    // Chân trái
     ctx.fillRect(-25, 60, 20, 50);
-    // Chân phải
     ctx.fillRect(5, 60, 20, 50);
-
-    // 2. Giày (Màu đen)
     ctx.fillStyle = '#212121';
-    ctx.beginPath();
-    ctx.ellipse(-15, 110, 12, 6, 0, 0, Math.PI * 2); // Giày trái
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(15, 110, 12, 6, 0, 0, Math.PI * 2); // Giày phải
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-15, 110, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(15, 110, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#558B2F'; 
+    ctx.beginPath(); ctx.roundRect(-35, 0, 70, 70, 10); ctx.fill();
+    ctx.fillStyle = '#3E2723'; ctx.fillRect(-35, 45, 70, 8);
+    ctx.fillStyle = '#FFD700'; ctx.fillRect(-5, 45, 10, 8);
+    ctx.strokeStyle = '#33691E'; ctx.lineWidth = 1; ctx.strokeRect(-25, 10, 20, 20); ctx.strokeRect(5, 10, 20, 20);
+    ctx.fillStyle = '#FFCCBC'; 
+    ctx.beginPath(); ctx.arc(0, -20, 35, 0, Math.PI * 2); ctx.fill();
 
-    // 3. Thân (Áo xanh bộ đội)
-    ctx.fillStyle = '#558B2F'; // Xanh lá cây
-    ctx.beginPath();
-    ctx.roundRect(-35, 0, 70, 70, 10); // Áo bo tròn góc
-    ctx.fill();
-    
-    // Thắt lưng
-    ctx.fillStyle = '#3E2723';
-    ctx.fillRect(-35, 45, 70, 8);
-    // Mặt thắt lưng vàng
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(-5, 45, 10, 8);
-
-    // Túi áo
-    ctx.strokeStyle = '#33691E';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(-25, 10, 20, 20);
-    ctx.strokeRect(5, 10, 20, 20);
-
-    // 4. Đầu
-    ctx.fillStyle = '#FFCCBC'; // Màu da
-    ctx.beginPath();
-    ctx.arc(0, -20, 35, 0, Math.PI * 2);
-    ctx.fill();
-
-    // --- VẼ PHẦN TÓC MÁI/BÚI NỮ (Để che phần nối với bím tóc sau lưng) ---
-    if (isFemale) {
-        ctx.fillStyle = '#212121'; // Tóc đen
-        // Vẽ phần tóc ôm nhẹ 2 bên tai cho gọn gàng
-        ctx.beginPath(); ctx.ellipse(-30, -22, 10, 15, -0.2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(30, -22, 10, 15, 0.2, 0, Math.PI*2); ctx.fill();
-    }
-    // ----------------------------
-
-    // 5. Tay
-    ctx.fillStyle = '#558B2F'; // Màu áo tay
-    
+    ctx.fillStyle = '#558B2F'; 
     if (isSaluting) {
-        // Tay phải chào
-        ctx.beginPath();
-        ctx.moveTo(35, 10);
-        ctx.lineTo(55, -20); // Cánh tay dưới lên
-        ctx.strokeStyle = '#558B2F';
-        ctx.lineWidth = 14;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        
-        // Bàn tay chào
-        ctx.fillStyle = '#FFCCBC';
-        ctx.beginPath();
-        ctx.ellipse(58, -25, 6, 12, Math.PI/4, 0, Math.PI*2);
-        ctx.fill();
-
-        // Tay trái buông xuôi
-        ctx.beginPath();
-        ctx.moveTo(-35, 10);
-        ctx.lineTo(-35, 50);
-        ctx.stroke();
-        // Bàn tay trái
-        ctx.fillStyle = '#FFCCBC';
-        ctx.beginPath();
-        ctx.arc(-35, 55, 6, 0, Math.PI*2);
-        ctx.fill();
-
+        ctx.beginPath(); ctx.moveTo(35, 10); ctx.lineTo(55, -20); ctx.strokeStyle = '#558B2F'; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.stroke();
+        ctx.fillStyle = '#FFCCBC'; ctx.beginPath(); ctx.ellipse(58, -25, 6, 12, Math.PI/4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-35, 10); ctx.lineTo(-35, 50); ctx.stroke();
+        ctx.fillStyle = '#FFCCBC'; ctx.beginPath(); ctx.arc(-35, 55, 6, 0, Math.PI*2); ctx.fill();
     } else {
-        // Hai tay buông xuôi hoặc nắm hờ
-        ctx.lineWidth = 14;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#558B2F';
-        
-        // Tay trái
+        ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.strokeStyle = '#558B2F';
         ctx.beginPath(); ctx.moveTo(-35, 10); ctx.lineTo(-40, 45); ctx.stroke();
-        // Tay phải
         ctx.beginPath(); ctx.moveTo(35, 10); ctx.lineTo(40, 45); ctx.stroke();
-        
-        // Bàn tay
         ctx.fillStyle = '#FFCCBC';
         ctx.beginPath(); ctx.arc(-40, 50, 6, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(40, 50, 6, 0, Math.PI*2); ctx.fill();
     }
 
-    // 6. Khuôn mặt (Biểu cảm)
-    ctx.fillStyle = '#333';
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
-
+    ctx.fillStyle = '#333'; ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
     if (gameState.feedbackType === 'wrong') {
-        // Mắt buồn
         ctx.beginPath(); ctx.moveTo(-15, -20); ctx.lineTo(-5, -20); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(5, -20); ctx.lineTo(15, -20); ctx.stroke();
-        // Mếu
         ctx.beginPath(); ctx.arc(0, -5, 8, Math.PI, 0, false); ctx.stroke();
     } else if (gameState.feedbackType === 'correct') {
-        // Mắt cười
         ctx.beginPath(); ctx.arc(-10, -20, 5, Math.PI, 0); ctx.stroke();
         ctx.beginPath(); ctx.arc(10, -20, 5, Math.PI, 0); ctx.stroke();
-        // Cười
         ctx.beginPath(); ctx.arc(0, -10, 10, 0, Math.PI, false); ctx.stroke();
     } else {
-        // Bình thường
         ctx.beginPath(); ctx.arc(-10, -20, 3, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(10, -20, 3, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(0, -10, 6, 0, Math.PI, false); ctx.stroke();
     }
-    // Má hồng
     ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
     ctx.beginPath(); ctx.arc(-18, -12, 5, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(18, -12, 5, 0, Math.PI*2); ctx.fill();
 
-    // 7. Mũ cối
     ctx.save();
-    ctx.translate(0, -45); // Dịch lên đỉnh đầu
-    ctx.beginPath();
-    ctx.arc(0, 0, 38, Math.PI, 0); // Vòm mũ
-    ctx.fillStyle = '#2E7D32';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 48, 10, 0, 0, 2 * Math.PI); // Vành mũ
-    ctx.fillStyle = '#2E7D32';
-    ctx.fill();
-    // Sao trên mũ
+    ctx.translate(0, -45); 
+    ctx.beginPath(); ctx.arc(0, 0, 38, Math.PI, 0); ctx.fillStyle = '#2E7D32'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, 48, 10, 0, 0, 2 * Math.PI); ctx.fillStyle = '#2E7D32'; ctx.fill();
     drawStar(ctx, 0, -20, 5, 6, 2.5, '#FFFF00');
     ctx.restore();
-
     ctx.restore();
 }
 
@@ -476,47 +472,18 @@ function drawPithHelmet(x, y, scale, number, isHovered, isCorrectHighlight = fal
     ctx.translate(x, y);
     ctx.scale(scale, scale);
     if (isHovered) ctx.scale(1.1, 1.1);
-
-    // Hiệu ứng Highlight (cho đáp án đúng khi user chọn sai)
     if (isCorrectHighlight) {
         ctx.shadowColor = "#76FF03";
         ctx.shadowBlur = 20;
     }
-
-    // Chóp mũ
-    ctx.beginPath();
-    ctx.arc(0, 0, 60, Math.PI, 0);
-    ctx.fillStyle = '#2E7D32';
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#1B5E20';
-    ctx.stroke();
-
-    // Vành mũ
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 80, 20, 0, 0, 2 * Math.PI);
-    ctx.fillStyle = '#388E3C';
-    ctx.fill();
-    ctx.stroke();
-
-    // Sao vàng
+    ctx.beginPath(); ctx.arc(0, 0, 60, Math.PI, 0); ctx.fillStyle = '#2E7D32'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#1B5E20'; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, 80, 20, 0, 0, 2 * Math.PI); ctx.fillStyle = '#388E3C'; ctx.fill(); ctx.stroke();
     drawStar(ctx, 0, -25, 5, 12, 5, '#FFEB3B');
-
-    // Số
-    ctx.beginPath();
-    ctx.arc(0, -70, 25, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.fillStyle = '#d32f2f';
-    ctx.font = 'bold 30px Nunito';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.beginPath(); ctx.arc(0, -70, 25, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 30px Nunito'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(number, 0, -68);
-
     ctx.restore();
 }
 
@@ -545,17 +512,10 @@ function drawSparkles() {
     ctx.fillStyle = '#FFFDE7';
     for (let s of gameState.sparkles) {
         ctx.globalAlpha = s.opacity;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-        ctx.beginPath();
-        ctx.moveTo(s.x - s.size * 1.5, s.y);
-        ctx.lineTo(s.x + s.size * 1.5, s.y);
-        ctx.moveTo(s.x, s.y - s.size * 1.5);
-        ctx.lineTo(s.x, s.y + s.size * 1.5);
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.beginPath(); ctx.moveTo(s.x - s.size * 1.5, s.y); ctx.lineTo(s.x + s.size * 1.5, s.y);
+        ctx.moveTo(s.x, s.y - s.size * 1.5); ctx.lineTo(s.x, s.y + s.size * 1.5); ctx.stroke();
     }
     ctx.globalAlpha = 1;
 }
@@ -563,46 +523,22 @@ function drawSparkles() {
 function drawTable() {
     const tableY = 480;
     ctx.fillStyle = '#8D6E63'; 
-    ctx.beginPath();
-    ctx.moveTo(0, tableY);
-    ctx.lineTo(canvas.width, tableY);
-    ctx.lineTo(canvas.width, tableY + 30);
-    ctx.lineTo(0, tableY + 30);
-    ctx.fill();
-    ctx.strokeStyle = '#5D4037';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, tableY + 28);
-    ctx.lineTo(canvas.width, tableY + 28);
-    ctx.stroke();
-    ctx.fillStyle = '#795548'; 
-    ctx.fillRect(50, tableY + 30, canvas.width - 100, canvas.height - (tableY + 30));
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.fillRect(50, tableY + 30, canvas.width - 100, 10);
+    ctx.beginPath(); ctx.moveTo(0, tableY); ctx.lineTo(canvas.width, tableY); ctx.lineTo(canvas.width, tableY + 30); ctx.lineTo(0, tableY + 30); ctx.fill();
+    ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, tableY + 28); ctx.lineTo(canvas.width, tableY + 28); ctx.stroke();
+    ctx.fillStyle = '#795548'; ctx.fillRect(50, tableY + 30, canvas.width - 100, canvas.height - (tableY + 30));
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(50, tableY + 30, canvas.width - 100, 10);
 }
 
 function drawBackground() {
     const gradient = ctx.createLinearGradient(0, 0, 0, 600);
-    gradient.addColorStop(0, '#29B6F6'); 
-    gradient.addColorStop(0.5, '#B3E5FC');
-    gradient.addColorStop(0.5, '#7CB342');
-    gradient.addColorStop(1, '#558B2F'); 
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#29B6F6'); gradient.addColorStop(0.5, '#B3E5FC'); gradient.addColorStop(0.5, '#7CB342'); gradient.addColorStop(1, '#558B2F'); 
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawSparkles();
-    ctx.fillStyle = '#4CAF50'; 
-    ctx.beginPath(); ctx.moveTo(0, 300); ctx.lineTo(150, 150); ctx.lineTo(350, 300); ctx.fill();
-    ctx.fillStyle = '#388E3C'; 
-    ctx.beginPath(); ctx.moveTo(250, 300); ctx.lineTo(500, 100); ctx.lineTo(750, 300); ctx.fill();
-    ctx.fillStyle = '#689F38';
-    ctx.fillRect(0, 300, canvas.width, 300); 
-    ctx.fillStyle = '#33691E';
-    for(let i=0; i<canvas.width; i+=40) {
-        let h = Math.random() * 20 + 10;
-        ctx.beginPath(); ctx.moveTo(i, 300); ctx.lineTo(i+10, 300-h); ctx.lineTo(i+20, 300); ctx.fill();
-    }
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.beginPath(); ctx.arc(100, 50, 30, 0, Math.PI*2); ctx.arc(140, 50, 40, 0, Math.PI*2); ctx.arc(180, 50, 30, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#4CAF50'; ctx.beginPath(); ctx.moveTo(0, 300); ctx.lineTo(150, 150); ctx.lineTo(350, 300); ctx.fill();
+    ctx.fillStyle = '#388E3C'; ctx.beginPath(); ctx.moveTo(250, 300); ctx.lineTo(500, 100); ctx.lineTo(750, 300); ctx.fill();
+    ctx.fillStyle = '#689F38'; ctx.fillRect(0, 300, canvas.width, 300); 
+    ctx.fillStyle = '#33691E'; for(let i=0; i<canvas.width; i+=40) { let h = Math.random() * 20 + 10; ctx.beginPath(); ctx.moveTo(i, 300); ctx.lineTo(i+10, 300-h); ctx.lineTo(i+20, 300); ctx.fill(); }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx.beginPath(); ctx.arc(100, 50, 30, 0, Math.PI*2); ctx.arc(140, 50, 40, 0, Math.PI*2); ctx.arc(180, 50, 30, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(600, 80, 25, 0, Math.PI*2); ctx.arc(640, 80, 35, 0, Math.PI*2); ctx.arc(680, 80, 25, 0, Math.PI*2); ctx.fill();
     drawFlag(80, 180); 
 }
@@ -610,21 +546,11 @@ function drawBackground() {
 function drawBoard(questionText, questionIndex) {
     const bx = 250, by = 100, bw = 300, bh = 150; 
     ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 8;
-    ctx.beginPath(); 
-    ctx.moveTo(bx + 50, by + bh); ctx.lineTo(bx + 30, by + bh + 250); 
-    ctx.moveTo(bx + bw - 50, by + bh); ctx.lineTo(bx + bw - 30, by + bh + 250); 
-    ctx.stroke();
-    ctx.fillStyle = '#263238'; 
-    ctx.fillRect(bx, by, bw, bh);
+    ctx.beginPath(); ctx.moveTo(bx + 50, by + bh); ctx.lineTo(bx + 30, by + bh + 250); ctx.moveTo(bx + bw - 50, by + bh); ctx.lineTo(bx + bw - 30, by + bh + 250); ctx.stroke();
+    ctx.fillStyle = '#263238'; ctx.fillRect(bx, by, bw, bh);
     ctx.lineWidth = 10; ctx.strokeStyle = '#8D6E63'; ctx.strokeRect(bx, by, bw, bh);
-    ctx.fillStyle = '#FFD54F'; 
-    ctx.font = 'bold 20px Nunito';
-    ctx.textAlign = 'center';
-    ctx.fillText("Câu " + (questionIndex + 1), bx + bw/2, by + 30);
-    ctx.fillStyle = '#fff'; 
-    ctx.font = 'bold 50px Nunito'; 
-    ctx.textBaseline = 'middle';
-    ctx.fillText(questionText + " = ?", bx + bw/2, by + bh/2 + 10);
+    ctx.fillStyle = '#FFD54F'; ctx.font = 'bold 20px Nunito'; ctx.textAlign = 'center'; ctx.fillText("Câu " + (questionIndex + 1), bx + bw/2, by + 30);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 50px Nunito'; ctx.textBaseline = 'middle'; ctx.fillText(questionText + " = ?", bx + bw/2, by + bh/2 + 10);
 }
 
 /**
@@ -680,26 +606,23 @@ function draw() {
     drawBackground();
 
     if (!gameState.isPlaying) {
-        drawDetailedSoldier(150, 350, true, false); // Nam
-        drawDetailedSoldier(650, 350, false, false); // Nữ -> Nam
+        drawDetailedSoldier(150, 350, true, false); 
+        drawDetailedSoldier(650, 350, false, true); // Nữ
         return; 
     }
 
     drawBoard(questionsData[gameState.currentQuestionIndex].q, gameState.currentQuestionIndex);
     drawTable();
 
-    // Vẽ 2 chú bộ đội đứng 2 bên bảng (sau bàn)
-    drawDetailedSoldier(150, 320, true, false); // Chú bên trái (Nam)
-    drawDetailedSoldier(650, 320, false, false); // Chú bên phải (Nữ -> Nam)
+    drawDetailedSoldier(150, 320, true, false); 
+    drawDetailedSoldier(650, 320, false, true); // Nữ
 
-    // Bong bóng chat CHỈ hiển thị ở câu số 3 (index = 2, tức là sau khi kết thúc câu 2)
     if (gameState.currentQuestionIndex === 2) {
-        // Vị trí mới không che bảng (bảng kết thúc x=550), đưa lên cao và lệch phải
         drawCuteSpeechBubble(670, 180, "Đến lượt bạn còn lại!");
     }
 
-    // Vẽ mũ đáp án
     gameState.options.forEach(opt => {
+        // Sử dụng mouse đã được scale
         const dx = gameState.mouse.x - opt.x;
         const dy = gameState.mouse.y - opt.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
@@ -740,7 +663,6 @@ function draw() {
         ctx.restore();
     }
 
-    // Vẽ điểm nổi bật
     ctx.save();
     ctx.font = '900 30px Nunito';
     ctx.textAlign = 'left';
@@ -760,27 +682,57 @@ function gameLoop() {
     }
 }
 
-// Mouse Events
+// XỬ LÝ SỰ KIỆN CHUỘT & CẢM ỨNG (RESPONSIVE)
 function getMousePos(evt) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
+    
+    // Hỗ trợ cả Touch và Mouse
+    let clientX = evt.clientX;
+    let clientY = evt.clientY;
+
+    if (evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+    } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+        // Cho sự kiện touchend
+        clientX = evt.changedTouches[0].clientX;
+        clientY = evt.changedTouches[0].clientY;
+    }
+
     return {
-        x: (evt.clientX - rect.left) * scaleX,
-        y: (evt.clientY - rect.top) * scaleY
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
     };
 }
 
+// Mouse events
 canvas.addEventListener('mousemove', (e) => {
     const pos = getMousePos(e);
     gameState.mouse.x = pos.x;
     gameState.mouse.y = pos.y;
 });
 
-canvas.addEventListener('click', (e) => {
+canvas.addEventListener('mousedown', (e) => {
+    handleInput(e);
+});
+
+// Touch events (Quan trọng cho mobile)
+canvas.addEventListener('touchstart', (e) => {
+    // Ngăn hành vi mặc định (scroll, zoom) để game mượt hơn
+    if(e.cancelable) e.preventDefault(); 
+    handleInput(e);
+}, {passive: false});
+
+function handleInput(e) {
     if (!gameState.isPlaying || gameState.feedbackTimer > 0) return;
 
     const pos = getMousePos(e);
+    // Cập nhật vị trí hover luôn để hiển thị hiệu ứng nếu có
+    gameState.mouse.x = pos.x;
+    gameState.mouse.y = pos.y;
+
     for (let opt of gameState.options) {
         const dx = pos.x - opt.x;
         const dy = pos.y - opt.y;
@@ -789,7 +741,7 @@ canvas.addEventListener('click', (e) => {
             break;
         }
     }
-});
+}
 
 function checkAnswer(selectedOption) {
     if (selectedOption.isCorrect) {
@@ -801,7 +753,7 @@ function checkAnswer(selectedOption) {
         playWrongSound();
     }
 
-    gameState.feedbackTimer = 90; // Tăng thời gian chờ lên 1.5s để bé kịp nhìn đáp án đúng
+    gameState.feedbackTimer = 90; 
     setTimeout(() => {
         gameState.currentQuestionIndex++;
         setupLevel();
@@ -828,20 +780,20 @@ function endGame() {
     gameState.isPlaying = false;
     stopBackgroundMusic();
     draw(); 
-
-    // Hiện màn hình Game Over
     finalScoreText.innerText = "Điểm của các chiến sĩ nhí: " + gameState.score + "/" + questionsData.length;
     gameOverScreen.style.display = 'flex';
 }
 
-// Bắt sự kiện nút
 btnStart.addEventListener('click', startGame);
 btnReplay.addEventListener('click', startGame);
 
-// Vẽ nền khởi đầu (preview)
+// Hỗ trợ touch cho nút bấm HTML (Start/Replay)
+btnStart.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
+btnReplay.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
+
 drawBackground();
-drawDetailedSoldier(150, 350, true, false); // Nam
-drawDetailedSoldier(650, 350, false, false); // Nữ -> Nam
+drawDetailedSoldier(150, 350, true, false); 
+drawDetailedSoldier(650, 350, false, true);
 
 </script>
 </body>
