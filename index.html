@@ -201,8 +201,10 @@ const btnSkipInstruction = document.getElementById('btnSkipInstruction');
 const questionsData = [
     { q: "8 + 0", a: 8 },
     { q: "10 - 5", a: 5 },
+    { q: "4 + 2", a: 6},
     { q: "5 + 2", a: 7 },
-    { q: "6 - 1", a: 5 }
+    { q: "6 - 1", a: 5 },
+    { q: "3 + 3", a: 6}
 ];
 
 let gameState = {
@@ -632,7 +634,7 @@ function draw() {
     drawDetailedSoldier(150, 320, true, false); 
     drawDetailedSoldier(650, 320, false, true); // Nữ
 
-    if (gameState.currentQuestionIndex === 2) {
+    if (gameState.currentQuestionIndex === 3) {
         drawCuteSpeechBubble(670, 180, "Đến lượt bạn còn lại!");
     }
 
